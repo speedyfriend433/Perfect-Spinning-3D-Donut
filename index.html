@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Enhanced Spinning 3D Donut</title>
+  <style>
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #000;
+      overflow: hidden;
+      height: 100%;
+    }
+    canvas {
+      display: block;
+    }
+
+    #controls {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(255, 255, 255, 0.8);
+      padding: 10px;
+      border-radius: 8px;
+      font-family: sans-serif;
+      z-index: 100;
+    }
+    #controls label {
+      display: block;
+      margin-bottom: 5px;
+      font-size: 14px;
+    }
+    #controls input[type=range] {
+      width: 150px;
+    }
+  </style>
+</head>
+<body>
+  <div id="controls">
+    <label>
+      Tube Radius (R1): <span id="r1Value">1</span>
+      <input type="range" id="r1" min="0.5" max="3" step="0.1" value="1">
+    </label>
+    <label>
+      Donut Radius (R2): <span id="r2Value">2</span>
+      <input type="range" id="r2" min="1" max="5" step="0.1" value="2">
+    </label>
+    <label>
+      Rotation Speed A: <span id="speedAValue">0.04</span>
+      <input type="range" id="speedA" min="0.01" max="0.1" step="0.005" value="0.04">
+    </label>
+    <label>
+      Rotation Speed B: <span id="speedBValue">0.02</span>
+      <input type="range" id="speedB" min="0.005" max="0.1" step="0.005" value="0.02">
+    </label>
+  </div>
+  <canvas id="donut"></canvas>
+  <script>
+
+    const canvas = document.getElementById('donut');
+    const ctx = canvas.getContext('2d');
+    
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    let R1 = parseFloat(document.getElementById('r1').value);
+    let R2 = parseFloat(document.getElementById('r2').value);
+    const K2 = 5;
+    let A = 0, B = 0;
+    let rotationSpeedA = parseFloat(document.getElementById('speedA').value);
+    let rotationSpeedB = parseFloat(document.getElementById('speedB').value);
+    
+    function computeK1() {
+      return canvas.width * K2 * 3 / (8 * (R1 + R2));
+    }
+
+    document.getElementById('r1').addEventListener('input', (e) => {
+      R1 = parseFloat(e.target.value);
+      document.getElementById('r1Value').innerText = R1;
+    });
+    document.getElementById('r2').addEventListener('input', (e) => {
+      R2 = parseFloat(e.target.value);
+      document.getElementById('r2Value').innerText = R2;
+    });
+    document.getElementById('speedA').addEventListener('input', (e) => {
+      rotationSpeedA = parseFloat(e.target.value);
+      document.getElementById('speedAValue').innerText = rotationSpeedA;
+    });
+    document.getElementById('speedB').addEventListener('input', (e) => {
+      rotationSpeedB = parseFloat(e.target.value);
+      document.getElementById('speedBValue').innerText = rotationSpeedB;
+    });
+    
+    function draw() {
+      ctx.fillStyle = 'black';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      const width = canvas.width;
+      const height = canvas.height;
+      const K1 = computeK1();
+      const zBuffer = new Array(width * height).fill(0);
+      const thetaSpacing = 0.07;
+      const phiSpacing = 0.02;
+    
+      for (let theta = 0; theta < 2 * Math.PI; theta += thetaSpacing) {
+        const cosTheta = Math.cos(theta);
+        const sinTheta = Math.sin(theta);
+        
+        for (let phi = 0; phi < 2 * Math.PI; phi += phiSpacing) {
+          const cosPhi = Math.cos(phi);
+          const sinPhi = Math.sin(phi);
+          const circleX = R2 + R1 * cosTheta;
+          const circleY = R1 * sinTheta;
+          const x = circleX * (Math.cos(B) * cosPhi + Math.sin(A) * Math.sin(B) * sinPhi) -
+                    circleY * Math.cos(A) * Math.sin(B);
+          const y = circleX * (Math.sin(B) * cosPhi - Math.sin(A) * Math.cos(B) * sinPhi) +
+                    circleY * Math.cos(A) * Math.cos(B);
+          const z = K2 + Math.cos(A) * circleX * sinPhi + circleY * Math.sin(A);
+          const ooz = 1 / z;
+          const xp = Math.floor(width / 2 + K1 * ooz * x);
+          const yp = Math.floor(height / 2 - K1 * ooz * y); 
+          const L = cosPhi * cosTheta * Math.sin(B) -
+                    Math.cos(A) * cosTheta * sinPhi -
+                    Math.sin(A) * sinTheta +
+                    Math.cos(B) * (Math.cos(A) * sinTheta - cosTheta * Math.sin(A) * sinPhi);
+          
+          if (xp >= 0 && xp < width && yp >= 0 && yp < height) {
+            const idx = xp + yp * width;
+            if (ooz > zBuffer[idx]) {
+              zBuffer[idx] = ooz;
+              const brightness = Math.max(0, Math.min(1, (L + 1) / 2));
+              const r = Math.floor(50 + brightness * (255 - 50));
+              const g = Math.floor(50 + brightness * (255 - 50));
+              const b = 255;
+              ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+              ctx.fillRect(xp, yp, 2, 2);
+            }
+          }
+        }
+      }
+      
+      A += rotationSpeedA;
+      B += rotationSpeedB;
+      requestAnimationFrame(draw);
+    }
+    
+    draw();
+  </script>
+</body>
+</html>
